@@ -46,10 +46,23 @@ class MarkdownEditorjs
 		$this->detectBlock('');
 	}
 	/**
-	 * Getting all blocks
+	 * Getting all blocks as Array
 	 **/
 	public function getBlocks(){
 		return $this->blocks;
+	}
+	/**
+	 * Getting as editorjs JSON
+	 **/
+	public function getEditorjsJSON(){
+		$timestamp = microtime();
+		$block_version = "2.24.2";
+		$array = [
+			'time'		=>	$timestamp,
+			'blocks'	=>	$this->blocks,
+			'version'	=>	$block_version
+		];
+		return json_encode($array);
 	}
 	/**
 	 * Detecting block type and parse it
@@ -60,7 +73,37 @@ class MarkdownEditorjs
 		$this->prevBlockType=$this->currentBlockType;
 		$this->prevBlockData=$this->currentBlockData;
 
-		if(preg_match("/^([\#]{1,6})\s(.*?)$/", $content, $matches)){
+		if (substr(trim($content), 0, 3)==='```') {
+
+			// Code
+			if($this->prevBlockType==='code'){
+				$data=[
+					'code'	=>	$this->prevBlockData['code']
+				];
+
+				$this->currentBlockType=NULL;
+				$this->currentBlockData=NULL;
+
+			}else{
+				$data=[
+					'code'	=>	''
+				];
+
+				$this->currentBlockType='code';
+				$this->currentBlockData=$data;
+			}
+		} elseif ($this->prevBlockType==='code'&&$this->currentBlockType!==NULL){
+
+			// Code content
+			$this->currentBlockType='code';
+			$data=[
+				'code'	=>	$this->prevBlockData['code'].$content."\n"
+			];
+			$this->currentBlockData=$data;
+
+			$this->removePrevBlock();
+
+		}elseif(preg_match("/^([\#]{1,6})\s(.*?)$/", $content, $matches)){
 
 			// Header block
 			$this->currentBlockType='header';
@@ -95,13 +138,13 @@ class MarkdownEditorjs
 				$data = [
 					'items'	=>	$this->prevBlockData['items']
 				];
-				$data['items'][]=$matches[1];
+				$data['items'][]=self::styleText($matches[1]);
 				
 				$this->removePrevBlock();
 			}else{
 				$data = [
 					'items' => [
-						$matches[1]
+						self::styleText($matches[1])
 					]
 				];
 			}
@@ -109,20 +152,20 @@ class MarkdownEditorjs
 			$this->currentBlockData=$data;
 			$this->currentBlockType='ordered-list';
 
-		} elseif(preg_match("/^(-|\*|\+)\.\s+(.*?)$/", $content, $matches)){
+		} elseif(preg_match("/^(\-|\*|\+)\s+(.*?)$/", $content, $matches)){
 
 			// Unordered list
 			if($this->prevBlockType==='unordered-list'){
 				$data = [
 					'items'	=>	$this->prevBlockData['items']
 				];
-				$data['items'][]=$matches[1];
+				$data['items'][]=self::styleText($matches[2]);
 
 				$this->removePrevBlock();
 			}else{
 				$data = [
 					'items' => [
-						$matches[1]
+						self::styleText($matches[2])
 					]
 				];
 			}
@@ -140,12 +183,12 @@ class MarkdownEditorjs
 			$this->currentBlockType='image';
 			$data=[
 				'file'	=>	[
-					'url'				=>	$url,
-					'caption'			=>	$title?$title:$alt,
-					'withBorder'		=>	FALSE,
-					'withBackground'	=>	FALSE,
-					'stretched'			=>	FALSE
+					'url'				=>	$url
 				],
+				'caption'			=>	$title?$title:$alt,
+				'withBorder'		=>	FALSE,
+				'withBackground'	=>	FALSE,
+				'stretched'			=>	FALSE
 			];
 			$this->currentBlockData=$data;
 
@@ -203,6 +246,15 @@ class MarkdownEditorjs
 		if(!$this->prevBlockType) return NULL;
 
 		switch ($this->prevBlockType) {
+
+			case 'code':
+				$push = [
+					'id'	=>	self::randomString(),
+					'type'	=>	'code',
+					'data'	=>	$this->prevBlockData
+				];
+				break;
+
 			case 'header':
 				$push = [
 					'id'	=>	self::randomString(),

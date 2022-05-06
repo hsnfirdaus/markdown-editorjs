@@ -8,6 +8,7 @@ This library is currently under development!
 
 ## Supported Blocks
 
+- Code
 - Header
 - List (Ordered and Unordered)
 - Image
