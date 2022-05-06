@@ -96,9 +96,7 @@ class MarkdownEditorjs
 					'items'	=>	$this->prevBlockData['items']
 				];
 				$data['items'][]=$matches[1];
-				$this->currentBlockData=$data;
-				$this->currentBlockType='ordered-list';
-
+				
 				$this->removePrevBlock();
 			}else{
 				$data = [
@@ -106,9 +104,11 @@ class MarkdownEditorjs
 						$matches[1]
 					]
 				];
-				$this->currentBlockData=$data;
-				$this->currentBlockType='ordered-list';
 			}
+
+			$this->currentBlockData=$data;
+			$this->currentBlockType='ordered-list';
+
 		} elseif(preg_match("/^(-|\*|\+)\.\s+(.*?)$/", $content, $matches)){
 
 			// Unordered list
@@ -117,8 +117,6 @@ class MarkdownEditorjs
 					'items'	=>	$this->prevBlockData['items']
 				];
 				$data['items'][]=$matches[1];
-				$this->currentBlockData=$data;
-				$this->currentBlockType='unordered-list';
 
 				$this->removePrevBlock();
 			}else{
@@ -127,9 +125,11 @@ class MarkdownEditorjs
 						$matches[1]
 					]
 				];
-				$this->currentBlockData=$data;
-				$this->currentBlockType='unordered-list';
 			}
+
+			$this->currentBlockData=$data;
+			$this->currentBlockType='unordered-list';
+
 		} elseif(preg_match("/^!\[(.*?)\]\((.*?)\s?(\"(.*?)\")?\)$/", trim($content), $matches)){
 
 			// Image
@@ -148,6 +148,39 @@ class MarkdownEditorjs
 				],
 			];
 			$this->currentBlockData=$data;
+
+		} elseif(preg_match("/^\|(.+)\|$/", trim($content), $matches)){
+
+			// Table
+			if($this->prevBlockType==='table'){
+				if(preg_match("/^([\s\-\|]+)$/", $matches[1])){
+					$heading = TRUE;
+					$skip = TRUE;
+				}else{
+					$heading = $this->prevBlockData['withHeadings'];
+				}
+				$data=[
+					'withHeadings'	=> $heading,
+					'content'		=> $this->prevBlockData['content']
+				];
+				$this->removePrevBlock();
+			}else{
+				$data=[
+					'withHeadings'	=> FALSE,
+					'content'		=>	[]
+				];
+			}
+			if(!@$skip){
+				$split = preg_split('/\\\\.(*SKIP)(*FAIL)|\|/', $matches[1]);
+				$that = $this;
+				$columns = array_map(function($value) use ($that) {
+					return $that::styleText(trim($value));
+				}, $split);
+				$data['content'][]=$columns;
+			}
+			$this->currentBlockType='table';
+			$this->currentBlockData=$data;
+
 		} elseif(!empty(trim($content))){
 
 			// So it's paragraph
@@ -208,6 +241,14 @@ class MarkdownEditorjs
 				];
 				break;
 
+			case 'table':
+				$push = [
+					'id'	=>	self::randomString(),
+					'type'	=>	'table',
+					'data'	=>	$this->prevBlockData
+				];
+				break;
+
 			case 'paragraph':
 				$push = [
 					'id'	=>	self::randomString(),
@@ -233,19 +274,19 @@ class MarkdownEditorjs
 	 **/
 	private static function styleText(string $text){
 		// Bold and italic
-		$text = preg_replace("/\*\*\*(.*?)\*\*\*/", "<b><i>$1</i></b>", $text);
-		$text = preg_replace("/___(.*?)___/", "<b><i>$1</i></b>", $text);
+		$text = preg_replace("/(?<!\\\\)\*\*\*(.*?)(?<!\\\\)\*\*\*/", "<b><i>$1</i></b>", $text);
+		$text = preg_replace("/(?<!\\\\)___(.*?)(?<!\\\\)___/", "<b><i>$1</i></b>", $text);
 
 		// Bold
-		$text = preg_replace("/\*\*(.*?)\*\*/", "<b>$1</b>", $text);
-		$text = preg_replace("/__(.*?)__/", "<b>$1</b>", $text);
+		$text = preg_replace("/(?<!\\\\)\*\*(.*?)(?<!\\\\)\*\*/", "<b>$1</b>", $text);
+		$text = preg_replace("/(?<!\\\\)__(.*?)(?<!\\\\)__/", "<b>$1</b>", $text);
 
 		// Italic
-		$text = preg_replace("/\*(.*?)\*/", "<i>$1</i>", $text);
-		$text = preg_replace("/_(.*?)_/", "<i>$1</i>", $text);
+		$text = preg_replace("/(?<!\\\\)\*(.*?)(?<!\\\\)\*/", "<i>$1</i>", $text);
+		$text = preg_replace("/(?<!\\\\)_(.*?)(?<!\\\\)_/", "<i>$1</i>", $text);
 
 		// Inline code
-		$text = preg_replace("/`(.*?)`/", "<code class=\"inline-code\">$1</code>", $text);
+		$text = preg_replace("/(?<!\\\\)`(.*?)(?<!\\\\)`/", "<code class=\"inline-code\">$1</code>", $text);
 
 		// Link
 		$text = preg_replace_callback("/\[(.*?)\]\((.*?)\s?(\"(.*?)\")?\)/", function($m){

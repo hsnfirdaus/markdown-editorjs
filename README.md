@@ -11,6 +11,7 @@ This library is currently under development!
 - Header
 - List (Ordered and Unordered)
 - Image
+- Table
 - Paragraph
 - Inline Tools : bold, italic, inline code, inline link
 
