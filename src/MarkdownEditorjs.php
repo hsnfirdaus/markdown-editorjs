@@ -109,7 +109,7 @@ class MarkdownEditorjs
 			$this->currentBlockType='header';
 
 			$data = [
-				'text'	=>	self::styleText($matches[2]),
+				'text'	=>	self::styleText(htmlentities($matches[2])),
 				'level'	=>	strlen($matches[1])
 			];
 			$this->currentBlockData = $data;
@@ -138,13 +138,13 @@ class MarkdownEditorjs
 				$data = [
 					'items'	=>	$this->prevBlockData['items']
 				];
-				$data['items'][]=self::styleText($matches[1]);
+				$data['items'][]=self::styleText(htmlentities($matches[1]));
 				
 				$this->removePrevBlock();
 			}else{
 				$data = [
 					'items' => [
-						self::styleText($matches[1])
+						self::styleText(htmlentities($matches[1]))
 					]
 				];
 			}
@@ -159,13 +159,13 @@ class MarkdownEditorjs
 				$data = [
 					'items'	=>	$this->prevBlockData['items']
 				];
-				$data['items'][]=self::styleText($matches[2]);
+				$data['items'][]=self::styleText(htmlentities($matches[2]));
 
 				$this->removePrevBlock();
 			}else{
 				$data = [
 					'items' => [
-						self::styleText($matches[2])
+						self::styleText(htmlentities($matches[2]))
 					]
 				];
 			}
@@ -178,14 +178,14 @@ class MarkdownEditorjs
 			// Image
 			$alt=$matches[1];
 			$url=$matches[2];
-			$title=@$m[4];
+			$title=@$matches[4];
 
 			$this->currentBlockType='image';
 			$data=[
 				'file'	=>	[
 					'url'				=>	$url
 				],
-				'caption'			=>	$title?$title:$alt,
+				'caption'			=>	htmlentities($title?$title:$alt),
 				'withBorder'		=>	FALSE,
 				'withBackground'	=>	FALSE,
 				'stretched'			=>	FALSE
@@ -217,7 +217,7 @@ class MarkdownEditorjs
 				$split = preg_split('/\\\\.(*SKIP)(*FAIL)|\|/', $matches[1]);
 				$that = $this;
 				$columns = array_map(function($value) use ($that) {
-					return $that::styleText(trim($value));
+					return $that::styleText(htmlentities(trim($value)));
 				}, $split);
 				$data['content'][]=$columns;
 			}
@@ -230,7 +230,7 @@ class MarkdownEditorjs
 
 			$this->currentBlockType='paragraph';
 			$this->currentBlockData=[
-				'text'	=>	self::styleText($content)
+				'text'	=>	self::styleText(htmlentities($content))
 			];
 		}else{
 			$this->currentBlockData=NULL;
@@ -326,16 +326,16 @@ class MarkdownEditorjs
 	 **/
 	private static function styleText(string $text){
 		// Bold and italic
-		$text = preg_replace("/(?<!\\\\)\*\*\*(.*?)(?<!\\\\)\*\*\*/", "<b><i>$1</i></b>", $text);
-		$text = preg_replace("/(?<!\\\\)___(.*?)(?<!\\\\)___/", "<b><i>$1</i></b>", $text);
+		$text = preg_replace("/\b(?<!\\\\)\*\*\*(.*?)(?<!\\\\)\*\*\*\b/", "<b><i>$1</i></b>", $text);
+		$text = preg_replace("/\b(?<!\\\\)___(.*?)(?<!\\\\)___\b/", "<b><i>$1</i></b>", $text);
 
 		// Bold
-		$text = preg_replace("/(?<!\\\\)\*\*(.*?)(?<!\\\\)\*\*/", "<b>$1</b>", $text);
-		$text = preg_replace("/(?<!\\\\)__(.*?)(?<!\\\\)__/", "<b>$1</b>", $text);
+		$text = preg_replace("/\b(?<!\\\\)\*\*(.*?)(?<!\\\\)\*\*\b/", "<b>$1</b>", $text);
+		$text = preg_replace("/\b(?<!\\\\)__(.*?)(?<!\\\\)__\b/", "<b>$1</b>", $text);
 
 		// Italic
-		$text = preg_replace("/(?<!\\\\)\*(.*?)(?<!\\\\)\*/", "<i>$1</i>", $text);
-		$text = preg_replace("/(?<!\\\\)_(.*?)(?<!\\\\)_/", "<i>$1</i>", $text);
+		$text = preg_replace("/\b(?<!\\\\)\*(.*?)(?<!\\\\)\*\b/", "<i>$1</i>", $text);
+		$text = preg_replace("/\b(?<!\\\\)_(.*?)(?<!\\\\)_\b/", "<i>$1</i>", $text);
 
 		// Inline code
 		$text = preg_replace("/(?<!\\\\)`(.*?)(?<!\\\\)`/", "<code class=\"inline-code\">$1</code>", $text);
@@ -349,6 +349,9 @@ class MarkdownEditorjs
 			return '<a href="'.$url.'"'.$attr.'>'.$content.'</a>';
 		}, $text);
 		$text = preg_replace("/<([a-zA-Z-]*?):\/\/(.*?)>/", "<a href=\"$1://$2\">$1://$2</a>", $text);
+
+		// Remove backslash
+		$text = preg_replace("/(?<!\\\\)\\\/","", $text);
 		return $text;
 	}
 	/**
